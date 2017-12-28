@@ -3,9 +3,14 @@ Kafka to Watson
 
 Simple program to fetch data from one Kafka topic, and send it to IBM Watson, pretending we are an IOT Gateway.
 
-The kafka message key MUST be of the form:
+The kafka message MUST be of the form:
 
-    deviceType/deviceId/event
+    {
+        "DeviceType": "...",
+        "DeviceId": "...",
+        "Event": "...",
+        "Message": { ... }
+    }
 
 it describes the device to impersonate.
 
@@ -21,7 +26,7 @@ it describes the device to impersonate.
 
 2. Push a message to the `watson` kafka topic:
 
-        kafkacat -P -t 'watson' -b localhost:9092 -K '#' <<< 'TestDevice/curldevice/cpu#{"temp":40}'
+        kafkacat -P -t 'watson' -b localhost:9092 <<< '{"DeviceType": "Thermometer", "DeviceId": "th032", "Event": "newState", "Message": {"temp":40}}'
 
 # TODO
 

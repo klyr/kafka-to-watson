@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	cluster "github.com/bsm/sarama-cluster"
 	"log"
@@ -11,6 +12,13 @@ import (
 )
 
 var WATSONURITMPL = "https://%s.messaging.internetofthings.ibmcloud.com/api/v0002/device/types/%s/devices/%s/events/%s"
+
+type WatsonKafkaMessage struct {
+	DeviceType string
+	DeviceId   string
+	Event      string
+	Message    interface{}
+}
 
 type WatsonConnection interface {
 	Init() error
@@ -129,15 +137,17 @@ func main() {
 			if ok {
 				log.Printf("New messages received Topic: '%s', Key: '%s', Message: '%s'",
 					msg.Topic, msg.Key, msg.Value)
+				var m WatsonKafkaMessage
+				err := json.Unmarshal(msg.Value, &m)
+				if err != nil {
+					log.Printf("[KAFKA] Message must be a valid JSON like { \"DeviceType\": ..., \"DeviceId\": ..., \"Event\": ..., \"Message\": ... }: %s", err)
+				} else {
+					// Convert the Message field to []byte
+					b, _ := json.Marshal(m.Message)
 
-				device := strings.Split(string(msg.Key), "/")
-				if len(device) == 3 {
-					deviceType, deviceId, event := device[0], device[1], device[2]
-					if err := c.Publish(deviceType, deviceId, event, msg.Value); err != nil {
+					if err = c.Publish(m.DeviceType, m.DeviceId, m.Event, b); err != nil {
 						log.Printf("[WATSON] Error while publishing data to Watson, message skipped…")
 					}
-				} else {
-					log.Printf("[KAFKA] Key must be of the form 'deviceType/deviceId/event', message skipped…")
 				}
 				consumer.MarkOffset(msg, "")
 			}
